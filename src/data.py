@@ -3,17 +3,53 @@ import torch
 import numpy as np
 import models
 from config import cfg
+import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import torchvision.transforms as T
+
+
 data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.3530,)),
               'CIFAR10': ((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
               'CIFAR100': ((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
               'SVHN': ((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
-              'STL10': ((0.4409, 0.4279, 0.3868), (0.2683, 0.2610, 0.2687))}
+              'STL10': ((0.4409, 0.4279, 0.3868), (0.2683, 0.2610, 0.2687)),
+              'voc' :((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))}
 
+
+class MyTransform(torch.nn.Module):
+    def __init__(self):
+        super(MyTransform, self).__init__()
+        self.process = transforms = A.Compose([
+                A.Resize(256, 256),  # Resize image to 256x256
+                #A.RandomCrop(224, 224),  # Random crop to 224x224
+                #A.Normalize(),  # Normalize the image
+                ToTensorV2(),  # Convert the image to PyTorch tensor
+            ])
+        self.normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    def forward(self,x,y):
+        aug = self.process(image=x, mask = y)
+        return self.normalize(aug['image']/255), aug['mask'].long()
+    
+class MyTransform2(torch.nn.Module):
+    def __init__(self):
+        super(MyTransform2, self).__init__()
+        self.process = transforms = A.Compose([
+                A.Resize(256, 256),  # Resize image to 256x256
+                A.RandomCrop(224, 224),  # Random crop to 224x224
+                A.HorizontalFlip(),
+                #A.Normalize(),  # Normalize the image
+                ToTensorV2(),  # Convert the image to PyTorch tensor
+            ])
+        self.normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    def forward(self,x,y):
+        aug = self.process(image=x, mask = y)
+        return self.normalize(aug['image']/255), aug['mask'].long()
 
 def fetch_dataset(data_name):
     import datasets
@@ -69,6 +105,24 @@ def fetch_dataset(data_name):
         dataset['test'].transform = datasets.Compose([
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
+    elif data_name in ['voc']:
+        voc_path = '/Users/karthiksanka/Desktop/dynamoAI/SemiFL-Semi-Supervised-Federated-Learning-for-Unlabeled-Clients-with-Alternate-Training/src/data/voc'
+        # ds1 = datasets.VOCSegmentation(root=voc_path,image_set='train', download=False,transforms = MyTransform())
+        # ds2 = datasets.VOCSegmentation(root=voc_path, image_set='trainval', download=False,transforms = MyTransform())
+        # dataset['train'] = torch.utils.data.ConcatDataset([ds1, ds2])
+        dataset['train'] = datasets.VOCSegmentation(root=voc_path,image_set='train', download=False,transforms = MyTransform())
+        dataset['test'] = datasets.VOCSegmentation(root=voc_path,image_set='val', download=False,transforms = MyTransform())
+        #dataset['train'] = torchvision.datasets.VOCSegmentation(root=root, year='2012', image_set='train', download=False,transforms = MyTransform())
+        #dataset['test'] = torchvision.datasets.VOCSegmentation(root=root, year='2012', image_set='val', download=False,transforms = MyTransform())
+
+        # dataset['train'] = eval('torchvision.datasets.{}(root=root, split=\'train\', '
+        #                         'transform=MyTransform())'.format(data_name))
+        # dataset['test'] = eval('torchvision.datasets.{}(root=root, split=\'val\', '
+        #                        'transform=MyTransform())'.format(data_name))
+        dataset['train'].transform = MyTransform()
+        dataset['test'].transform = MyTransform()
+
+        
     else:
         raise ValueError('Not valid dataset name')
     print('data ready')
@@ -180,6 +234,13 @@ def non_iid(dataset, num_users):
 
 
 def separate_dataset(dataset, idx):
+    if cfg['data_name'] in ['voc']:
+        separated_dataset = copy.deepcopy(dataset)
+        separated_dataset.data = [dataset[s]['data'] for s in idx]
+        separated_dataset.target = [dataset[s]['target'] for s in idx]
+        separated_dataset.other['id'] = list(range(len(separated_dataset)))
+        return separated_dataset
+            
     separated_dataset = copy.deepcopy(dataset)
     separated_dataset.data = [dataset.data[s] for s in idx]
     separated_dataset.target = [dataset.target[s] for s in idx]
@@ -200,11 +261,15 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
                     idx = torch.where(target == i)[0]
                     idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
                     supervised_idx.extend(idx)
+        elif cfg['data_name'] in ['voc']:
+            supervised_idx = torch.arange(500).tolist()
+
         else:
             if cfg['num_supervised'] == -1:
                 supervised_idx = list(range(len(server_dataset)))
             else:
                 target = torch.tensor(server_dataset.target)
+                #target = server_dataset.mask.long()
                 num_supervised_per_class = cfg['num_supervised'] // cfg['target_size']
                 supervised_idx = []
                 for i in range(cfg['target_size']):
@@ -297,6 +362,9 @@ class FixTransform(object):
                 transforms.ToTensor(),
                 transforms.Normalize(*data_stats[data_name])
             ])
+        elif data_name in ['voc']:
+            self.weak = MyTransform()
+            self.strong = MyTransform2()
         else:
             raise ValueError('Not valid dataset')
 
