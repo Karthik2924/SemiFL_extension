@@ -23,7 +23,7 @@ if __name__ == "__main__":
     makedir_exist_ok(stats_path)
     process_control()
     cfg['seed'] = 0
-    data_names = ['MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN']
+    data_names = ['MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN','voc']
     with torch.no_grad():
         for data_name in data_names:
             cfg['data_name'] = data_name
