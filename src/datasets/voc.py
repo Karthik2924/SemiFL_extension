@@ -217,8 +217,8 @@ class VOCSegmentation(_VOCBase):
 
         return img, target
 
-ds = VOCSegmentation(root='/Users/karthiksanka/Desktop/dynamoAI/SemiFL-Semi-Supervised-Federated-Learning-for-Unlabeled-Clients-with-Alternate-Training/src/data/voc/',image_set='train', download=False)
-print("The end*************")
+# ds = VOCSegmentation(root='/Users/karthiksanka/Desktop/dynamoAI/SemiFL-Semi-Supervised-Federated-Learning-for-Unlabeled-Clients-with-Alternate-Training/src/data/voc/',image_set='train', download=False)
+# print("The end*************")
 
     
     
