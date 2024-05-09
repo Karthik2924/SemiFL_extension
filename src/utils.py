@@ -108,7 +108,7 @@ def recur(fn, input, *args):
 
 def process_dataset(dataset):
     cfg['data_size'] = {'train': len(dataset['train']), 'test': len(dataset['test'])}
-    cfg['target_size'] = dataset['train'].target_size
+    cfg['target_size'] = len(dataset['train'])
     return
 
 
@@ -117,7 +117,7 @@ def process_control():
         cfg['control']['num_supervised'] = '-1'
     cfg['num_supervised'] = int(cfg['control']['num_supervised'])
     data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'CIFAR10': [3, 32, 32], 'CIFAR100': [3, 32, 32],
-                  'SVHN': [3, 32, 32]}
+                  'SVHN': [3, 32, 32],'voc':[3,128,256]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['conv'] = {'hidden_size': [32, 64]}
     cfg['resnet9'] = {'hidden_size': [64, 128, 256, 512]}
@@ -146,6 +146,7 @@ def process_control():
             cfg['server']['batch_size'] = {'train': 250, 'test': 500}
         else:
             cfg['server']['batch_size'] = {'train': 10, 'test': 500}
+
         cfg['server']['num_epochs'] = int(np.ceil(float(cfg['local_epoch'][1])))
         cfg['client'] = {}
         cfg['client']['shuffle'] = {'train': True, 'test': False}
@@ -170,6 +171,7 @@ def process_control():
         cfg['alpha'] = 0.75
     else:
         model_name = cfg['model_name']
+        cfg[model_name] = {}
         cfg[model_name]['shuffle'] = {'train': True, 'test': False}
         cfg[model_name]['optimizer_name'] = 'SGD'
         cfg[model_name]['lr'] = 1e-1
