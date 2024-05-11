@@ -2,6 +2,25 @@ import torch
 import torch.nn.functional as F
 from config import cfg
 from utils import recur
+import numpy as np
+
+def compute_iou(pred_mask,true_mask):
+    intersection = np.logical_and(true_mask, pred_mask)
+    union = np.logical_or(true_mask, pred_mask)
+    iou_score = np.sum(intersection) / np.sum(union)
+    return iou_score
+
+def compute_dice_coefficient(pred_mask,true_mask):
+    intersection = np.sum(true_mask * pred_mask)
+    union = np.sum(true_mask) + np.sum(pred_mask)
+    dice_coefficient = (2. * intersection) / union
+    return dice_coefficient
+
+def compute_pixel_accuracy(pred_mask,true_mask):
+    correct_pixels = np.sum(true_mask == pred_mask)
+    total_pixels = true_mask.size
+    pixel_accuracy = correct_pixels / total_pixels
+    return pixel_accuracy
 
 
 def Accuracy(output, target, topk=1):
@@ -40,13 +59,18 @@ class Metric(object):
                        'PAccuracy': (lambda input, output: recur(Accuracy, output['target'], input['target'])),
                        'MAccuracy': (lambda input, output: recur(MAccuracy, output['target'], input['target'],
                                                                  output['mask'])),
-                       'LabelRatio': (lambda input, output: recur(LabelRatio, output['mask']))}
+                       'LabelRatio': (lambda input, output: recur(LabelRatio, output['mask'])),
+                       'iou' : (lambda input,output :recur(compute_iou,output['target'],input['target'])),
+                        'dice' : (lambda input,output :recur(compute_dice_coefficient,output['target'],input['target'])),
+                        'pixel_accuracy' : (lambda input,output :recur(compute_pixel_accuracy,output['target'],input['target']))
+                       
+                       }
 
     def make_metric_name(self, metric_name):
         return metric_name
 
     def make_pivot(self):
-        if cfg['data_name'] in ['MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN', 'STL10']:
+        if cfg['data_name'] in ['MNIST', 'FashionMNIST', 'CIFAR10', 'CIFAR100', 'SVHN', 'STL10', 'voc']:
             pivot = -float('inf')
             pivot_direction = 'up'
             pivot_name = 'Accuracy'
@@ -55,6 +79,7 @@ class Metric(object):
         return pivot, pivot_name, pivot_direction
 
     def evaluate(self, metric_names, input, output):
+        print(output.keys())
         evaluation = {}
         for metric_name in metric_names:
             evaluation[metric_name] = self.metric[metric_name](input, output)
