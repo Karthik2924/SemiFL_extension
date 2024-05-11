@@ -21,6 +21,9 @@ class Deeplab_model(nn.Module):
     def forward(self, input):
         output = {}
         output['target'] = self.f(input['data'])
+        # print("***********")
+        # print(input['data'].shape,input['target'].shape,output['target'].shape)
+        # print("*************")
         if 'loss_mode' in input:
             if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
@@ -36,6 +39,7 @@ class Deeplab_model(nn.Module):
         else:
             if not torch.any(input['target'] == -1):
                 output['loss'] = loss_fn(output['target'], input['target'])
+        output['mask'] = torch.argmax(output['target'],1)
         return output
     
 

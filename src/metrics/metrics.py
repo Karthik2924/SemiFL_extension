@@ -3,24 +3,40 @@ import torch.nn.functional as F
 from config import cfg
 from utils import recur
 import numpy as np
+from torchmetrics.classification import Dice
 
+dice1 = Dice(average='macro',num_classes = 21,ignore_index = 0).to('cuda')
+dice2 = Dice(average='macro',num_classes = 21).to('cuda')
 def compute_iou(pred_mask,true_mask):
-    intersection = np.logical_and(true_mask, pred_mask)
-    union = np.logical_or(true_mask, pred_mask)
-    iou_score = np.sum(intersection) / np.sum(union)
-    return iou_score
+    '''
+    Compute dice score by ignoring background
+    '''
+    
+    #print(pred_mask.shape,true_mask.shape)
+    pred_mask = torch.argmax(pred_mask,1)
+    return dice1(pred_mask.to('cuda'), true_mask.to('cuda')).item()
+    # intersection = np.logical_and(true_mask, pred_mask)
+    # union = np.logical_or(true_mask, pred_mask)
+    # iou_score = np.sum(intersection) / np.sum(union)
+    # return iou_score
 
 def compute_dice_coefficient(pred_mask,true_mask):
-    intersection = np.sum(true_mask * pred_mask)
-    union = np.sum(true_mask) + np.sum(pred_mask)
-    dice_coefficient = (2. * intersection) / union
-    return dice_coefficient
+    pred_mask = torch.argmax(pred_mask,1)
+    #dice = Dice(average='macro',num_classes = 21).to(pred_mask.device)
+    return dice2(pred_mask.to('cuda'), true_mask.to('cuda')).item()
+
+    #return dice(pred_mask, true_mask).item()
+    # intersection = np.sum(true_mask * pred_mask)
+    # union = np.sum(true_mask) + np.sum(pred_mask)
+    # dice_coefficient = (2. * intersection) / union
+    # return dice_coefficient
 
 def compute_pixel_accuracy(pred_mask,true_mask):
-    correct_pixels = np.sum(true_mask == pred_mask)
-    total_pixels = true_mask.size
+    pred_mask = torch.argmax(pred_mask,1)
+    correct_pixels = torch.sum(true_mask == pred_mask)
+    total_pixels = true_mask.view(-1).size()[0]
     pixel_accuracy = correct_pixels / total_pixels
-    return pixel_accuracy
+    return pixel_accuracy.item()
 
 
 def Accuracy(output, target, topk=1):
@@ -79,7 +95,7 @@ class Metric(object):
         return pivot, pivot_name, pivot_direction
 
     def evaluate(self, metric_names, input, output):
-        print(output.keys())
+        #print(output.keys())
         evaluation = {}
         for metric_name in metric_names:
             evaluation[metric_name] = self.metric[metric_name](input, output)

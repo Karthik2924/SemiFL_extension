@@ -61,7 +61,8 @@ def runExperiment():
         # metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
         #                  'test': ['Loss', 'Accuracy']})
     else:
-        metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
+        #metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
+        metric = Metric({'train': ['Loss'], 'test': ['Loss']})
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -123,6 +124,7 @@ def make_client(model, data_split):
 
 
 def train_client(batchnorm_dataset, client_dataset, server, client, optimizer, metric, logger, epoch):
+    #print(metric)
     logger.safe(True)
     num_active_clients = int(np.ceil(cfg['active_rate'] * cfg['num_clients']))
     client_id = torch.arange(cfg['num_clients'])[torch.randperm(cfg['num_clients'])[:num_active_clients]].tolist()
@@ -182,7 +184,7 @@ def test(data_loader, model, metric, logger, epoch):
     with torch.no_grad():
         model.train(False)
         for i, input in enumerate(data_loader):
-            input = collate(input)
+            #input = collate(input)
             input_size = input['data'].size(0)
             input = to_device(input, cfg['device'])
             output = model(input)

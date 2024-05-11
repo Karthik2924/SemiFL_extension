@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
+# import albumentations as A
+# from albumentations.pytorch import ToTensorV2
 import torchvision.transforms as T
 
 
@@ -22,8 +22,8 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
               'voc' :((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))}
 
 from datasets import VOCSegmentation
-mask_path = 'masks.npy'
-impath = 'images.npy'
+mask_path = 'data/masks.npy'
+impath = 'data/images.npy'
 def copy_dataset(ds):
     ds1 = VOCSegmentation(impath,mask_path)
     for i in dir(ds):
@@ -94,8 +94,8 @@ def fetch_dataset(data_name):
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['voc']:
-      mask_path = '/content/drive/MyDrive/SemiFL/masks.npy'
-      impath = '/content/drive/MyDrive/SemiFL/images.npy'
+      mask_path = 'data/masks.npy'
+      impath = 'data/images.npy'
       dataset['train'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'train')
       dataset['test'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'test')
         
@@ -123,7 +123,8 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
         _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
         if cfg['data_name'] in ['voc']:
             _batch_size = 32
-            data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, 
+            rs = torch.utils.data.RandomSampler(dataset[k], replacement=False, num_samples=None)
+            data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler = rs,
                                         pin_memory=True, num_workers=cfg['num_workers'],
                                         worker_init_fn=np.random.seed(cfg['seed']))
         elif sampler is not None:
@@ -358,7 +359,7 @@ class FixTransform(object):
             self.weak = torchvision.transforms.v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1))
             self.strong =  torchvision.transforms.v2.Compose([
                                 #transforms.ColorJitter(contrast=0.5),
-                                 torchvision.transforms.v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1,1)),
+                                 torchvision.transforms.v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1,1.)),
                                  torchvision.transforms.v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
                                 #transforms.ToTensor()
                                 #transforms.CenterCrop(480),

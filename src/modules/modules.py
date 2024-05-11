@@ -11,6 +11,7 @@ from config import cfg
 from data import make_data_loader, make_batchnorm_stats, FixTransform, MixDataset
 from utils import to_device, make_optimizer, collate, to_device
 from metrics import Accuracy
+from data import copy_dataset
 
 
 class Server:
@@ -156,7 +157,7 @@ class Server:
                 num_batches = None
             for epoch in range(1, cfg['server']['num_epochs'] + 1):
                 for i, input in enumerate(data_loader):
-                    input = collate(input)
+                    #input = collate(input)
                     input_size = input['data'].size(0)
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
@@ -164,7 +165,9 @@ class Server:
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    #evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    evaluation = metric.evaluate(['iou', 'dice', 'pixel_accuracy'], input, output)
+
                     logger.append(evaluation, 'train', n=input_size)
                     if num_batches is not None and i == num_batches - 1:
                         break
@@ -182,7 +185,7 @@ class Server:
                 num_batches = None
             for epoch in range(1, cfg['server']['num_epochs'] + 1):
                 for i, input in enumerate(data_loader):
-                    input = collate(input)
+                    #input = collate(input)
                     input_size = input['data'].size(0)
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
@@ -234,7 +237,7 @@ class Client:
                 output = []
                 target = []
                 for i, input in enumerate(data_loader):
-                    input = collate(input)
+                    #input = collate(input)
                     input = to_device(input, cfg['device'])
                     output_ = model(input)
                     output_i = output_['target']
@@ -247,17 +250,20 @@ class Client:
                 output_['target'] = F.softmax(output_['target'], dim=-1)
                 new_target, mask = self.make_hard_pseudo_label(output_['target'])
                 output_['mask'] = mask
-                evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
+                evaluation = metric.evaluate(['iou','dice','pixel_accuracy'] , input_ , output_ )
+                #evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
                 logger.append(evaluation, 'train', n=len(input_['target']))
                 if torch.any(mask):
-                    fix_dataset = copy.deepcopy(dataset)
+                    #fix_dataset = copy.deepcopy(dataset)
+                    fix_dataset = copy_dataset(dataset)
                     fix_dataset.target = new_target.tolist()
                     mask = mask.tolist()
                     fix_dataset.data = list(compress(fix_dataset.data, mask))
                     fix_dataset.target = list(compress(fix_dataset.target, mask))
                     fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
                     if 'mix' in cfg['loss_mode']:
-                        mix_dataset = copy.deepcopy(dataset)
+                        mix_dataset = copy_dataset(dataset)
+                        #mix_dataset = copy.deepcopy(dataset)
                         mix_dataset.target = new_target.tolist()
                         mix_dataset = MixDataset(len(fix_dataset), mix_dataset)
                     else:
@@ -283,7 +289,7 @@ class Client:
                 num_batches = None
             for epoch in range(1, cfg['client']['num_epochs'] + 1):
                 for i, input in enumerate(data_loader):
-                    input = collate(input)
+                    #input = collate(input)
                     input_size = input['data'].size(0)
                     input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
@@ -312,7 +318,7 @@ class Client:
                 num_batches = None
             for epoch in range(1, cfg['client']['num_epochs'] + 1):
                 for i, input in enumerate(fix_data_loader):
-                    input = collate(input)
+                    #input = collate(input)
                     input_size = input['data'].size(0)
                     input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
@@ -330,6 +336,11 @@ class Client:
             fix_dataset, mix_dataset = dataset
             fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
             mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
+            print("**********")
+            print(len(fix_data_loader),len(mix_data_loader))
+            print(max(fix_dataset['train'].ind))
+            print(max(mix_dataset['train'].ind))
+            print("**********")
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
@@ -344,7 +355,7 @@ class Client:
                 for i, (fix_input, mix_input) in enumerate(zip(fix_data_loader, mix_data_loader)):
                     input = {'data': fix_input['data'], 'target': fix_input['target'], 'aug': fix_input['aug'],
                              'mix_data': mix_input['data'], 'mix_target': mix_input['target']}
-                    input = collate(input)
+                    #input = collate(input)
                     input_size = input['data'].size(0)
                     input['lam'] = self.beta.sample()[0]
                     input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
@@ -379,7 +390,7 @@ class Client:
                 for i, input in enumerate(data_loader):
                     with torch.no_grad():
                         model.train(False)
-                        input_ = collate(input)
+                        #input_ = collate(input)
                         input_ = to_device(input_, cfg['device'])
                         output_ = model(input_)
                         output_i = output_['target']

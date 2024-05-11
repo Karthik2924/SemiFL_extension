@@ -6,7 +6,7 @@ import numpy as np
 
 
 class VOCSegmentation(Dataset):
-    def __init__(self, images_path = 'images.npy', masks_path = 'masks.npy',split = 'train'):
+    def __init__(self, images_path = 'data/images.npy', masks_path = 'data/masks.npy',split = 'train'):
         self.split = split
         self.train_indices, self.test_indices = train_test_split(range(2913), test_size=0.3, random_state=42)
 
@@ -31,8 +31,8 @@ class VOCSegmentation(Dataset):
         self.other = {'id': self.id}
         self.target_size = self.target[0].shape
 
-    def __len__(self):
-      return len(self.ind)
+    def __len__(self):        
+        return len(self.ind)
         # if self.split == 'train':
         #     return len(self.train_indices)
         # elif self.split == "test":
