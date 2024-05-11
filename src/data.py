@@ -21,40 +21,28 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
               'STL10': ((0.4409, 0.4279, 0.3868), (0.2683, 0.2610, 0.2687)),
               'voc' :((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))}
 
+from datasets import VOCSegmentation
+mask_path = 'masks.npy'
+impath = 'images.npy'
+def copy_dataset(ds):
+    ds1 = VOCSegmentation(impath,mask_path)
+    for i in dir(ds):
+        if i[0] == '_':
+            continue
+        if i in ['id','data','target']:
+            continue
+        else:
+            #i = 'data'
+            expression = f"ds1.{i} = ds1.{i}"
+            exec(expression)
+    return ds1
 
-class MyTransform(torch.nn.Module):
-    def __init__(self):
-        super(MyTransform, self).__init__()
-        self.process = transforms = A.Compose([
-                A.Resize(256, 256),  # Resize image to 256x256
-                #A.RandomCrop(224, 224),  # Random crop to 224x224
-                #A.Normalize(),  # Normalize the image
-                ToTensorV2(),  # Convert the image to PyTorch tensor
-            ])
-        self.normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    def forward(self,x,y):
-        aug = self.process(image=x, mask = y)
-        return self.normalize(aug['image']/255), aug['mask'].long()
-    
-class MyTransform2(torch.nn.Module):
-    def __init__(self):
-        super(MyTransform2, self).__init__()
-        self.process = transforms = A.Compose([
-                A.Resize(256, 256),  # Resize image to 256x256
-                A.RandomCrop(224, 224),  # Random crop to 224x224
-                A.HorizontalFlip(),
-                #A.Normalize(),  # Normalize the image
-                ToTensorV2(),  # Convert the image to PyTorch tensor
-            ])
-        self.normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    def forward(self,x,y):
-        aug = self.process(image=x, mask = y)
-        return self.normalize(aug['image']/255), aug['mask'].long()
 
 def fetch_dataset(data_name):
     import datasets
     dataset = {}
     print('fetching data {}...'.format(data_name))
+
     root = './data/{}'.format(data_name)
     if data_name in ['MNIST', 'FashionMNIST']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
@@ -106,22 +94,10 @@ def fetch_dataset(data_name):
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['voc']:
-        voc_path = '/Users/karthiksanka/Desktop/dynamoAI/SemiFL-Semi-Supervised-Federated-Learning-for-Unlabeled-Clients-with-Alternate-Training/src/data/voc'
-        # ds1 = datasets.VOCSegmentation(root=voc_path,image_set='train', download=False,transforms = MyTransform())
-        # ds2 = datasets.VOCSegmentation(root=voc_path, image_set='trainval', download=False,transforms = MyTransform())
-        # dataset['train'] = torch.utils.data.ConcatDataset([ds1, ds2])
-        dataset['train'] = datasets.VOCSegmentation(root=voc_path,image_set='train', download=False,transforms = MyTransform())
-        dataset['test'] = datasets.VOCSegmentation(root=voc_path,image_set='val', download=False,transforms = MyTransform())
-        #dataset['train'] = torchvision.datasets.VOCSegmentation(root=root, year='2012', image_set='train', download=False,transforms = MyTransform())
-        #dataset['test'] = torchvision.datasets.VOCSegmentation(root=root, year='2012', image_set='val', download=False,transforms = MyTransform())
-
-        # dataset['train'] = eval('torchvision.datasets.{}(root=root, split=\'train\', '
-        #                         'transform=MyTransform())'.format(data_name))
-        # dataset['test'] = eval('torchvision.datasets.{}(root=root, split=\'val\', '
-        #                        'transform=MyTransform())'.format(data_name))
-        dataset['train'].transform = MyTransform()
-        dataset['test'].transform = MyTransform()
-
+      mask_path = '/content/drive/MyDrive/SemiFL/masks.npy'
+      impath = '/content/drive/MyDrive/SemiFL/images.npy'
+      dataset['train'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'train')
+      dataset['test'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'test')
         
     else:
         raise ValueError('Not valid dataset name')
@@ -145,7 +121,12 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
     for k in dataset:
         _batch_size = cfg[tag]['batch_size'][k] if batch_size is None else batch_size[k]
         _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
-        if sampler is not None:
+        if cfg['data_name'] in ['voc']:
+            _batch_size = 32
+            data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, 
+                                        pin_memory=True, num_workers=cfg['num_workers'],
+                                        worker_init_fn=np.random.seed(cfg['seed']))
+        elif sampler is not None:
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler=sampler[k],
                                         pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
                                         worker_init_fn=np.random.seed(cfg['seed']))
@@ -236,14 +217,16 @@ def non_iid(dataset, num_users):
 def separate_dataset(dataset, idx):
     if cfg['data_name'] in ['voc']:
         separated_dataset = copy.deepcopy(dataset)
-        separated_dataset.data = [dataset[s]['data'] for s in idx]
-        separated_dataset.target = [dataset[s]['target'] for s in idx]
-        separated_dataset.other['id'] = list(range(len(separated_dataset)))
+        separated_dataset.ind = np.array(idx)
         return separated_dataset
             
     separated_dataset = copy.deepcopy(dataset)
     separated_dataset.data = [dataset.data[s] for s in idx]
     separated_dataset.target = [dataset.target[s] for s in idx]
+    # if cfg['data_name'] in ['voc']:
+    #     separated_dataset.id = [dataset.id[s] for s in idx]
+    #     separated_dataset.other['id'] = separated_dataset.id
+    # else:
     separated_dataset.other['id'] = list(range(len(separated_dataset.data)))
     return separated_dataset
 
@@ -262,7 +245,7 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
                     idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
                     supervised_idx.extend(idx)
         elif cfg['data_name'] in ['voc']:
-            supervised_idx = torch.arange(500).tolist()
+            supervised_idx = server_dataset.ind[np.arange(500)].tolist()
 
         else:
             if cfg['num_supervised'] == -1:
@@ -276,7 +259,10 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
                     idx = torch.where(target == i)[0]
                     idx = idx[torch.randperm(len(idx))[:num_supervised_per_class]].tolist()
                     supervised_idx.extend(idx)
-    idx = list(range(len(server_dataset)))
+    if cfg['data_name'] in ['voc']:
+        idx = server_dataset.ind[list(range(len(server_dataset)))].tolist()
+    else:
+        idx = list(range(len(server_dataset)))
     unsupervised_idx = list(set(idx) - set(supervised_idx))
     _server_dataset = separate_dataset(server_dataset, supervised_idx)
     if client_dataset is None:
@@ -285,6 +271,10 @@ def separate_dataset_su(server_dataset, client_dataset=None, supervised_idx=None
         _client_dataset = separate_dataset(client_dataset, unsupervised_idx)
         transform = FixTransform(cfg['data_name'])
         _client_dataset.transform = transform
+    # if cfg['data_name'] in ['voc']:
+    #     _server_dataset.ind = np.array(supervised_idx)
+    #     _client_dataset.ind = np.array(unsupervised_idx)
+
     return _server_dataset, _client_dataset, supervised_idx
 
 
@@ -308,20 +298,21 @@ def make_batchnorm_stats(dataset, model, tag):
     with torch.no_grad():
         test_model = copy.deepcopy(model)
         test_model.apply(lambda m: models.make_batchnorm(m, momentum=None, track_running_stats=True))
-        dataset, _transform = make_dataset_normal(dataset)
+        #dataset, _transform = make_dataset_normal(dataset)
         data_loader = make_data_loader({'train': dataset}, tag, shuffle={'train': False})['train']
         test_model.train(True)
         for i, input in enumerate(data_loader):
-            input = collate(input)
+            #input = collate(input)
             input = to_device(input, cfg['device'])
             test_model(input)
-        dataset.transform = _transform
+        #dataset.transform = _transform
     return test_model
 
 
 class FixTransform(object):
     def __init__(self, data_name):
         import datasets
+        self.segmentation = 0
         if data_name in ['CIFAR10', 'CIFAR100']:
             self.weak = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
@@ -363,17 +354,28 @@ class FixTransform(object):
                 transforms.Normalize(*data_stats[data_name])
             ])
         elif data_name in ['voc']:
-            self.weak = MyTransform()
-            self.strong = MyTransform2()
+            self.segmentation = 1
+            self.weak = torchvision.transforms.v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1))
+            self.strong =  torchvision.transforms.v2.Compose([
+                                #transforms.ColorJitter(contrast=0.5),
+                                 torchvision.transforms.v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1,1)),
+                                 torchvision.transforms.v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)
+                                #transforms.ToTensor()
+                                #transforms.CenterCrop(480),
+                            ])
         else:
             raise ValueError('Not valid dataset')
 
     def __call__(self, input):
+        # if self.segmentation:
+        #   data,target = self.weak(input['data'],input['target'])
+        #   aug,aug_target = self.strong(input['data'],input['target'])
+        #   input = {**input, 'data':data,'target':target,}
         data = self.weak(input['data'])
         aug = self.strong(input['data'])
+        
         input = {**input, 'data': data, 'aug': aug}
         return input
-
 
 class MixDataset(Dataset):
     def __init__(self, size, dataset):
