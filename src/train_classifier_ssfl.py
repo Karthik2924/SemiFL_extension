@@ -56,8 +56,10 @@ def runExperiment():
         raise ValueError('Not valid sbn')
     data_split = split_dataset(client_dataset, cfg['num_clients'], cfg['data_split_mode'])
     if cfg['loss_mode'] != 'sup':
-        metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
-                         'test': ['Loss', 'Accuracy']})
+        metric = Metric({'train': ['iou', 'dice', 'pixel_accuracy'],
+                  'test': ['iou', 'pixel_accuracy']})
+        # metric = Metric({'train': ['Loss', 'Accuracy', 'PAccuracy', 'MAccuracy', 'LabelRatio'],
+        #                  'test': ['Loss', 'Accuracy']})
     else:
         metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
     if cfg['resume_mode'] == 1:
