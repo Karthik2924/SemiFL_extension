@@ -9,12 +9,18 @@ from config import cfg
 # model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet101', pretrained=True)
 # model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=False)
 
+def loss_fn(output, target, reduction='mean'):
+    if target.dtype == torch.int64:
+        loss = F.cross_entropy(output, target, reduction=reduction,ignore_index = 0)
+    else:
+        loss = F.mse_loss(output, target, reduction=reduction)
+    return loss
 
 
 class Deeplab_model(nn.Module):
     def __init__(self, ):
         super().__init__()
-        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=False)
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
 
     def f(self, x):
         return self.model(x)['out']

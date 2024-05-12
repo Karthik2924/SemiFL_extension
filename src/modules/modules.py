@@ -221,11 +221,16 @@ class Client:
         self.verbose = cfg['verbose']
 
     def make_hard_pseudo_label(self, soft_pseudo_label):
-        max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
-        mask = max_p.ge(cfg['threshold'])
+        #max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
+        max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=1)
+        #mask = max_p.ge(cfg['threshold'])
+        mask = max_p.ge(0.7)
+
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
+        print("++++making dataset+++++++")
+        print(cfg['loss_mode'])
         if 'sup' in cfg['loss_mode']:
             return dataset
         elif 'fix' in cfg['loss_mode']:
@@ -247,7 +252,10 @@ class Client:
                 output_, input_ = {}, {}
                 output_['target'] = torch.cat(output, dim=0)
                 input_['target'] = torch.cat(target, dim=0)
-                output_['target'] = F.softmax(output_['target'], dim=-1)
+                print(f" op : {output_['target'].shape} ip : {input_['target'].shape} ")
+                #output_['target'] = F.softmax(output_['target'], dim=-1)
+                output_['target'] = F.softmax(output_['target'], dim=1)
+
                 new_target, mask = self.make_hard_pseudo_label(output_['target'])
                 output_['mask'] = mask
                 evaluation = metric.evaluate(['iou','dice','pixel_accuracy'] , input_ , output_ )
@@ -275,7 +283,9 @@ class Client:
             raise ValueError('Not valid client loss mode')
 
     def train(self, dataset, lr, metric, logger):
+        print(cfg['loss_mode'])
         if cfg['loss_mode'] == 'sup':
+            print("*******condition 1 ******")
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)
@@ -304,6 +314,8 @@ class Client:
                         break
         elif 'fix' in cfg['loss_mode'] and 'mix' not in cfg['loss_mode'] and 'batch' not in cfg[
             'loss_mode'] and 'frgd' not in cfg['loss_mode'] and 'fmatch' not in cfg['loss_mode']:
+            print("*******condition 2 ******")
+
             fix_dataset, _ = dataset
             fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
@@ -333,13 +345,15 @@ class Client:
                         break
         elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and 'batch' not in cfg[
             'loss_mode'] and 'frgd' not in cfg['loss_mode'] and 'fmatch' not in cfg['loss_mode']:
+            print("*******condition 3 ******")
+
             fix_dataset, mix_dataset = dataset
             fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
             mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
             print("**********")
             print(len(fix_data_loader),len(mix_data_loader))
-            print(max(fix_dataset['train'].ind))
-            print(max(mix_dataset['train'].ind))
+            print(len(fix_dataset),max(fix_dataset.ind))
+            print(len(mix_dataset))
             print("**********")
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)
@@ -372,6 +386,8 @@ class Client:
                     if num_batches is not None and i == num_batches - 1:
                         break
         elif 'batch' in cfg['loss_mode'] or 'frgd' in cfg['loss_mode'] or 'fmatch' in cfg['loss_mode']:
+            print("*******condition 4 ******")
+
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)
