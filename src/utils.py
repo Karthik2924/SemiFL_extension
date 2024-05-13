@@ -283,5 +283,7 @@ def resume(model_tag, load_tag='checkpoint', verbose=True):
 
 def collate(input):
     for k in input:
-        input[k] = torch.stack(input[k], 0)
+        #print(k)
+        if type(input[k])!= torch.Tensor:
+            input[k] = torch.stack(input[k], 0)
     return input

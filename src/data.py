@@ -8,6 +8,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
+import copy
 
 # import albumentations as A
 # from albumentations.pytorch import ToTensorV2
@@ -33,9 +34,22 @@ def copy_dataset(ds):
             continue
         else:
             #i = 'data'
-            expression = f"ds1.{i} = ds1.{i}"
+            expression = f"ds1.{i} = copy.deepcopy(ds.{i})"
             exec(expression)
     return ds1
+
+# def copy_dataset1():
+#     ds1 = SimpleDataset()
+#     for i in dir(ds):
+#         if i[0] == '_':
+#             continue
+#         if i in ['id','data','target']:
+#             continue
+#         else:
+#             #i = 'data'
+#             expression = f"ds1.{i} = ds1.{i}"
+#             exec(expression)
+#     return ds1
 
 
 def fetch_dataset(data_name):
@@ -121,10 +135,11 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
     for k in dataset:
         _batch_size = cfg[tag]['batch_size'][k] if batch_size is None else batch_size[k]
         _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
+        #print("shuffle  :",_shuffle)
         if cfg['data_name'] in ['voc']:
-            _batch_size = 32
-            rs = torch.utils.data.RandomSampler(dataset[k], replacement=False, num_samples=None)
-            data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, sampler = rs,
+            _batch_size = 33
+            #rs = torch.utils.data.RandomSampler(dataset[k], replacement=False, num_samples=None)
+            data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, shuffle = _shuffle,
                                         pin_memory=True, num_workers=cfg['num_workers'],
                                         worker_init_fn=np.random.seed(cfg['seed']))
         elif sampler is not None:
@@ -391,3 +406,5 @@ class MixDataset(Dataset):
 
     def __len__(self):
         return self.size
+
+

@@ -12,6 +12,7 @@ from data import make_data_loader, make_batchnorm_stats, FixTransform, MixDatase
 from utils import to_device, make_optimizer, collate, to_device
 from metrics import Accuracy
 from data import copy_dataset
+from datasets.voc import SimpleDataset
 
 
 class Server:
@@ -220,17 +221,27 @@ class Client:
         self.beta = torch.distributions.beta.Beta(torch.tensor([cfg['alpha']]), torch.tensor([cfg['alpha']]))
         self.verbose = cfg['verbose']
 
-    def make_hard_pseudo_label(self, soft_pseudo_label):
+    # def make_hard_pseudo_label(self, soft_pseudo_label):
+    #     #max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
+    #     max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=1)
+    #     #mask = max_p.ge(cfg['threshold'])
+    #     mask = max_p.ge(0.7)
+    #     return hard_pseudo_label, mask
+    def make_hard_pseudo_label( self,soft_pseudo_label):
         #max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
         max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=1)
+        #print(max_p.shape)
+        mv = max_p.view(max_p.shape[0],-1).sum(1)
+        a,b,c = max_p.shape
+        total = b*c
         #mask = max_p.ge(cfg['threshold'])
-        mask = max_p.ge(0.7)
-
+        #mask = max_p.ge(0.08)
+        mask = mv.ge(total*0.8)
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
-        print("++++making dataset+++++++")
-        print(cfg['loss_mode'])
+        #print("++++making dataset+++++++")
+        #print(cfg['loss_mode'])
         if 'sup' in cfg['loss_mode']:
             return dataset
         elif 'fix' in cfg['loss_mode']:
@@ -241,18 +252,22 @@ class Client:
                 model.train(False)
                 output = []
                 target = []
+                #idl = []
                 for i, input in enumerate(data_loader):
                     #input = collate(input)
                     input = to_device(input, cfg['device'])
                     output_ = model(input)
                     output_i = output_['target']
                     target_i = input['target']
+                    #idl.append(input['id'].cpu())
                     output.append(output_i.cpu())
                     target.append(target_i.cpu())
+                #print("********CHECK ******")
+                #print(torch.tensor(dataset.id[dataset.ind]) == torch.cat(idl,0))
                 output_, input_ = {}, {}
                 output_['target'] = torch.cat(output, dim=0)
                 input_['target'] = torch.cat(target, dim=0)
-                print(f" op : {output_['target'].shape} ip : {input_['target'].shape} ")
+                #print(f" op : {output_['target'].shape} ip : {input_['target'].shape} ")
                 #output_['target'] = F.softmax(output_['target'], dim=-1)
                 output_['target'] = F.softmax(output_['target'], dim=1)
 
@@ -263,16 +278,28 @@ class Client:
                 logger.append(evaluation, 'train', n=len(input_['target']))
                 if torch.any(mask):
                     #fix_dataset = copy.deepcopy(dataset)
-                    fix_dataset = copy_dataset(dataset)
+                    #fix_dataset = copy_dataset(dataset)
+                    fix_dataset = SimpleDataset()
                     fix_dataset.target = new_target.tolist()
+                    fix_dataset.data = dataset.data
+                    fix_dataset.transform = copy.deepcopy(dataset.transform)
+                    
                     mask = mask.tolist()
-                    fix_dataset.data = list(compress(fix_dataset.data, mask))
-                    fix_dataset.target = list(compress(fix_dataset.target, mask))
-                    fix_dataset.other = {'id': list(range(len(fix_dataset.data)))}
+
+                    fix_dataset.ind = dataset.ind[mask]
+                    
+                    #fix_dataset.data = torch.stack(list(compress(fix_dataset.data, mask)))
+                    fix_dataset.target = torch.tensor(list(compress(fix_dataset.target, mask)))
+                    fix_dataset.other = {'id': torch.tensor(list(range(len(fix_dataset.data))))}
+                    # print(f'''fix_dataset : data shape:{fix_dataset.data.shape}, target shape : {fix_dataset.target.shape}, 
+                    # ind shape : {fix_dataset.ind.shape} max ind {max(fix_dataset.ind)} ''')
                     if 'mix' in cfg['loss_mode']:
-                        mix_dataset = copy_dataset(dataset)
+                        mix_dataset = SimpleDataset()
+                        mix_dataset.target = torch.tensor(new_target.tolist())
+                        mix_dataset.data = dataset.data
+                        mix_dataset.ind = dataset.ind #[mask]
+                        #mix_dataset = copy_dataset(dataset)
                         #mix_dataset = copy.deepcopy(dataset)
-                        mix_dataset.target = new_target.tolist()
                         mix_dataset = MixDataset(len(fix_dataset), mix_dataset)
                     else:
                         mix_dataset = None
@@ -345,16 +372,16 @@ class Client:
                         break
         elif 'fix' in cfg['loss_mode'] and 'mix' in cfg['loss_mode'] and 'batch' not in cfg[
             'loss_mode'] and 'frgd' not in cfg['loss_mode'] and 'fmatch' not in cfg['loss_mode']:
-            print("*******condition 3 ******")
+            #print("*******condition 3 ******")
 
             fix_dataset, mix_dataset = dataset
             fix_data_loader = make_data_loader({'train': fix_dataset}, 'client')['train']
             mix_data_loader = make_data_loader({'train': mix_dataset}, 'client')['train']
-            print("**********")
-            print(len(fix_data_loader),len(mix_data_loader))
-            print(len(fix_dataset),max(fix_dataset.ind))
-            print(len(mix_dataset))
-            print("**********")
+            # print("**********")
+            # print(len(fix_data_loader),len(mix_data_loader))
+            # print(len(fix_dataset),max(fix_dataset.ind))
+            # print(len(mix_dataset))
+            # print("**********")
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
             model.load_state_dict(self.model_state_dict, strict=False)
             self.optimizer_state_dict['param_groups'][0]['lr'] = lr
@@ -365,11 +392,23 @@ class Client:
                 num_batches = int(np.ceil(len(fix_data_loader) * float(cfg['local_epoch'][0])))
             else:
                 num_batches = None
+
+            # print("******TESTING DELETE*******")
+            # for i, fix_input in enumerate(fix_data_loader):
+            #     print(i)
+            #     print(fix_input.keys())
+            #     break
+            # for i, mix_input in enumerate(mix_data_loader):
+            #     print(i)
+            #     print(mix_input.keys())
+            #     break
+            # print("*****TESTING Finished DELETE*****")
+            
             for epoch in range(1, cfg['client']['num_epochs'] + 1):
                 for i, (fix_input, mix_input) in enumerate(zip(fix_data_loader, mix_data_loader)):
                     input = {'data': fix_input['data'], 'target': fix_input['target'], 'aug': fix_input['aug'],
                              'mix_data': mix_input['data'], 'mix_target': mix_input['target']}
-                    #input = collate(input)
+                    input = collate(input)
                     input_size = input['data'].size(0)
                     input['lam'] = self.beta.sample()[0]
                     input['mix_data'] = (input['lam'] * input['data'] + (1 - input['lam']) * input['mix_data']).detach()
@@ -377,16 +416,19 @@ class Client:
                     input['loss_mode'] = cfg['loss_mode']
                     input = to_device(input, cfg['device'])
                     optimizer.zero_grad()
+                    #print(input.keys())
+                    #print(input['loss_mode'])
                     output = model(input)
+                    #print(output.keys())
                     output['loss'].backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
                     optimizer.step()
-                    evaluation = metric.evaluate(['Loss', 'Accuracy'], input, output)
+                    evaluation = metric.evaluate(['Loss', 'pixel_accuracy','dice'], input, output)
                     logger.append(evaluation, 'train', n=input_size)
                     if num_batches is not None and i == num_batches - 1:
                         break
         elif 'batch' in cfg['loss_mode'] or 'frgd' in cfg['loss_mode'] or 'fmatch' in cfg['loss_mode']:
-            print("*******condition 4 ******")
+            #print("*******condition 4 ******")
 
             data_loader = make_data_loader({'train': dataset}, 'client')['train']
             model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))

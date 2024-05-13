@@ -50,6 +50,7 @@ class VOCSegmentation(Dataset):
     def __getitem__(self, idx):
         idx = self.ind[idx]
         image = self.data[idx]
+        #print(idx)
         mask = self.target[idx]
         other = {'id' : self.id[idx]}
         #id = self.id[idx]
@@ -61,6 +62,32 @@ class VOCSegmentation(Dataset):
             #image = self.transform(image)
             #image,mask = self.transform(image,mask)
             #mask = self.transform(mask)
+        return inp
+
+
+
+class SimpleDataset(Dataset):
+    def __init__(self):
+        #self.num_samples = num_samples
+        self.data = torch.rand(100,3,128,128)
+        self.target = torch.rand(100,1,128,128)
+        self.transform = None
+        self.ind = np.arange(100)
+
+
+    def __len__(self):
+        return len(self.ind)
+        #return self.num_samples
+
+    def __getitem__(self, idx):
+        didx = self.ind[idx]
+        data = torch.tensor(self.data[didx,:])
+        tgt = self.target[idx]
+        inp = {'data': data , 'target':tgt}
+        #print(data.shape,tgt.shape)
+        if self.transform:
+            inp = self.transform(inp)
+            #return {'data':self.transform(torch.tensor(self.data[didx,:])), 'target':self.target[idx]} # 'target':self.transform(self.target[idx])
         return inp
 # import collections
 # import os

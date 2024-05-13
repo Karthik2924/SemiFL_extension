@@ -23,6 +23,9 @@ class Deeplab_model(nn.Module):
         self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
 
     def f(self, x):
+        #print(x.shape)
+        if x.shape[0]==1:
+            return self.model(torch.cat((x,x),0))['out'][0].unsqueeze(0)
         return self.model(x)['out']
     def forward(self, input):
         output = {}
@@ -30,18 +33,24 @@ class Deeplab_model(nn.Module):
         # print("***********")
         # print(input['data'].shape,input['target'].shape,output['target'].shape)
         # print("*************")
+        # for k in input:
+        #     print(f" {k} : {input[k].shape}")
         if 'loss_mode' in input:
-            if input['loss_mode'] == 'sup':
+            if 'sup' in input['loss_mode']:
+            #if input['loss_mode'] == 'sup':
                 output['loss'] = loss_fn(output['target'], input['target'])
-            elif input['loss_mode'] == 'fix':
+            elif ('fix' in input['loss_mode']) and ('mix' not in input['loss_mode']):
+            #elif input['loss_mode'] == 'fix':
                 aug_output = self.f(input['aug'])
                 output['loss'] = loss_fn(aug_output, input['target'].detach())
-            elif input['loss_mode'] == 'fix-mix':
+                
+            elif 'fix' in input['loss_mode'] and 'mix' in input['loss_mode']:
+            # elif input['loss_mode'] == 'fix-mix':
                 aug_output = self.f(input['aug'])
                 output['loss'] = loss_fn(aug_output, input['target'].detach())
                 mix_output = self.f(input['mix_data'])
-                output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][:, 0].detach()) + (
-                        1 - input['lam']) * loss_fn(mix_output, input['mix_target'][:, 1].detach())
+                output['loss'] += input['lam'] * loss_fn(mix_output, input['mix_target'][..., 0].detach()) + (
+                        1 - input['lam']) * loss_fn(mix_output, input['mix_target'][..., 1].detach())
         else:
             if not torch.any(input['target'] == -1):
                 output['loss'] = loss_fn(output['target'], input['target'])
