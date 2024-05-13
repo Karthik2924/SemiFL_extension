@@ -236,12 +236,13 @@ class Client:
         total = b*c
         #mask = max_p.ge(cfg['threshold'])
         #mask = max_p.ge(0.08)
-        mask = mv.ge(total*0.8)
+        mask = mv.ge(total*0.9)
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
-        #print("++++making dataset+++++++")
+        print("++++making dataset+++++++")
         #print(cfg['loss_mode'])
+        print(cfg['threshold'])
         if 'sup' in cfg['loss_mode']:
             return dataset
         elif 'fix' in cfg['loss_mode']:

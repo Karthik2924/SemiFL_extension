@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import init_param, make_batchnorm, loss_fn
+from .utils import init_param, make_batchnorm#, loss_fn
 from config import cfg
 
 #model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', pretrained=True)
@@ -20,8 +20,14 @@ def loss_fn(output, target, reduction='mean'):
 class Deeplab_model(nn.Module):
     def __init__(self, ):
         super().__init__()
-        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
-
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', pretrained=True)
+        #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
+        for param in self.model.backbone.parameters():
+            param.requires_grad = False
+        for module in self.model.backbone.modules():
+            if isinstance(module, nn.BatchNorm2d):
+                module.eval()
+    
     def f(self, x):
         #print(x.shape)
         if x.shape[0]==1:
