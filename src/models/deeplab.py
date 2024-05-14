@@ -70,6 +70,6 @@ def deeplab(momentum=None, track=False):
     # hidden_size = cfg['resnet18']['hidden_size']
     #model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=False)
     model = Deeplab_model()
-    model.apply(init_param)
+    #model.apply(init_param)
     model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     return model
