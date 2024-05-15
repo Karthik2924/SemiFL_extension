@@ -11,7 +11,7 @@ from config import cfg
 
 def loss_fn(output, target, reduction='mean'):
     if target.dtype == torch.int64:
-        loss = F.cross_entropy(output, target, reduction=reduction,ignore_index = 0)
+        loss = F.cross_entropy(output, target, reduction=reduction)
     else:
         loss = F.mse_loss(output, target, reduction=reduction)
     return loss
@@ -20,7 +20,9 @@ def loss_fn(output, target, reduction='mean'):
 class Deeplab_model(nn.Module):
     def __init__(self, ):
         super().__init__()
-        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', pretrained=True)
+        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', weights='DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1')#.to(device)
+        #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large',weights = 'DeepLabV3_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1').to(device)
+        #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', pretrained=True)
         #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
         for param in self.model.backbone.parameters():
             param.requires_grad = False
@@ -71,5 +73,9 @@ def deeplab(momentum=None, track=False):
     #model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=False)
     model = Deeplab_model()
     #model.apply(init_param)
+    #model.model.classifier.apply(init_param)
+    #model.classifier.apply(init_param)
+    #model.model.classifier.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
     model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+
     return model
