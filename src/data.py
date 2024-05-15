@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataloader import default_collate
 from utils import collate, to_device
 import copy
-
+from datasets.voc import SimpleDataset
 # import albumentations as A
 # from albumentations.pytorch import ToTensorV2
 import torchvision.transforms as T
@@ -30,7 +30,7 @@ def copy_dataset(ds):
     for i in dir(ds):
         if i[0] == '_':
             continue
-        if i in ['id','data','target']:
+        if i in ['data','target']:
             continue
         else:
             #i = 'data'
@@ -38,18 +38,18 @@ def copy_dataset(ds):
             exec(expression)
     return ds1
 
-# def copy_dataset1():
-#     ds1 = SimpleDataset()
-#     for i in dir(ds):
-#         if i[0] == '_':
-#             continue
-#         if i in ['id','data','target']:
-#             continue
-#         else:
-#             #i = 'data'
-#             expression = f"ds1.{i} = ds1.{i}"
-#             exec(expression)
-#     return ds1
+def copy_dataset1():
+    ds1 = SimpleDataset()
+    for i in dir(ds):
+        if i[0] == '_':
+            continue
+        if i in ['id','data','target']:
+            continue
+        else:
+            #i = 'data'
+            expression = f"ds1.{i} = ds1.{i}"
+            exec(expression)
+    return ds1
 
 
 def fetch_dataset(data_name):
@@ -137,7 +137,7 @@ def make_data_loader(dataset, tag, batch_size=None, shuffle=None, sampler=None, 
         _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
         #print("shuffle  :",_shuffle)
         if cfg['data_name'] in ['voc']:
-            _batch_size = 33
+            _batch_size = 9
             #rs = torch.utils.data.RandomSampler(dataset[k], replacement=False, num_samples=None)
             data_loader[k] = DataLoader(dataset=dataset[k], batch_size=_batch_size, shuffle = _shuffle,
                                         pin_memory=True, num_workers=cfg['num_workers'],
@@ -231,8 +231,14 @@ def non_iid(dataset, num_users):
 
 
 def separate_dataset(dataset, idx):
+
     if cfg['data_name'] in ['voc']:
-        separated_dataset = copy.deepcopy(dataset)
+        # separated_dataset = SimpleDataset()
+        # separated_dataset.target = torch.tensor(new_target.tolist())
+        # separated_dataset.data = dataset.data
+        # mix_dataset.ind = dataset.ind
+        separated_dataset = copy_dataset(dataset)
+        #separated_dataset = copy.deepcopy(dataset)
         separated_dataset.ind = np.array(idx)
         return separated_dataset
             
