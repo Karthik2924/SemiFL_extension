@@ -230,13 +230,16 @@ class Client:
     def make_hard_pseudo_label( self,soft_pseudo_label):
         #max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=-1)
         max_p, hard_pseudo_label = torch.max(soft_pseudo_label, dim=1)
+        print(soft_pseudo_label.shape,max_p.shape,hard_pseudo_label.shape)
         #print(max_p.shape)
         mv = max_p.view(max_p.shape[0],-1).sum(1)
         a,b,c = max_p.shape
         total = b*c
         #mask = max_p.ge(cfg['threshold'])
         #mask = max_p.ge(0.08)
-        mask = mv.ge(total*0.9)
+        mask = mv.ge(total * cfg['threshold'])
+        print(torch.unique(mask,return_counts = True))
+        print(torch.max(mv))
         return hard_pseudo_label, mask
 
     def make_dataset(self, dataset, metric, logger):
@@ -278,6 +281,7 @@ class Client:
                 #evaluation = metric.evaluate(['PAccuracy', 'MAccuracy', 'LabelRatio'], input_, output_)
                 logger.append(evaluation, 'train', n=len(input_['target']))
                 if torch.any(mask):
+                    print("******MASKKK TRUEEE*****")
                     #fix_dataset = copy.deepcopy(dataset)
                     #fix_dataset = copy_dataset(dataset)
                     fix_dataset = SimpleDataset()
