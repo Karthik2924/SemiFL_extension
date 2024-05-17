@@ -18,17 +18,29 @@ def loss_fn(output, target, reduction='mean'):
 
 
 class Deeplab_model(nn.Module):
-    def __init__(self, ):
+    def __init__(self, name = 'res'):
         super().__init__()
-        self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', weights='DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1')#.to(device)
+        if 'res' in name:
+            print("***RESNET****")
+            self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', weights='DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1')#.to(device)
+        elif 'mobile' in name:
+            print("***MOBILE***")
+            self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large',weights = 'DeepLabV3_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1')
+        else:
+            self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', weights='DeepLabV3_ResNet50_Weights.COCO_WITH_VOC_LABELS_V1')#.to(device)
         #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large',weights = 'DeepLabV3_MobileNet_V3_Large_Weights.COCO_WITH_VOC_LABELS_V1').to(device)
         #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_resnet50', pretrained=True)
         #self.model = torch.hub.load('pytorch/vision:v0.10.0', 'deeplabv3_mobilenet_v3_large', pretrained=True)
+        
         for param in self.model.backbone.parameters():
             param.requires_grad = False
         for module in self.model.backbone.modules():
             if isinstance(module, nn.BatchNorm2d):
                 module.eval()
+        if 'nocl' in name:
+            self.model.classifier.apply(init_param)
+
+            
     
     def f(self, x):
         #print(x.shape)
@@ -76,6 +88,38 @@ def deeplab(momentum=None, track=False):
     #model.model.classifier.apply(init_param)
     #model.classifier.apply(init_param)
     #model.model.classifier.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+
+    return model
+
+def deeplab_res(momentum=None, track=False):
+
+    model = Deeplab_model("res")
+
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+
+    return model
+
+def deeplab_mobile(momentum=None, track=False):
+
+    model = Deeplab_model("mobile")
+
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+
+    return model
+
+def deeplab_res_nocl(momentum=None, track=False):
+
+    model = Deeplab_model("res_nocl")
+
+    model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
+
+    return model
+
+def deeplab_mobile_nocl(momentum=None, track=False):
+
+    model = Deeplab_model("mobile_nocl")
+
     model.apply(lambda m: make_batchnorm(m, momentum=momentum, track_running_stats=track))
 
     return model

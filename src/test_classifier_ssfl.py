@@ -52,7 +52,7 @@ def runExperiment():
     train_logger = result['logger'] if 'logger' in result else None
     result = {'cfg': cfg, 'epoch': last_epoch, 'supervised_idx': supervised_idx, 'data_split': data_split,
               'logger': {'train': train_logger, 'test': test_logger}}
-    save(result, './output/result/{}.pt'.format(cfg['model_tag']))
+    save(result, '/mnt/beegfs/ksanka/output/result/{}.pt'.format(cfg['model_tag']))
     return
 
 

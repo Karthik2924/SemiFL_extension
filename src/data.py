@@ -23,8 +23,9 @@ data_stats = {'MNIST': ((0.1307,), (0.3081,)), 'FashionMNIST': ((0.2860,), (0.35
               'voc' :((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))}
 
 from datasets import VOCSegmentation
-mask_path = 'data/masks.npy'
-impath = 'data/images.npy'
+
+mask_path = '/mnt/beegfs/ksanka/semiFL/masks.npy'
+impath = '/mnt/beegfs/ksanka/semiFL/images.npy'
 def copy_dataset(ds):
     ds1 = VOCSegmentation(impath,mask_path)
     for i in dir(ds):
@@ -108,10 +109,11 @@ def fetch_dataset(data_name):
             transforms.ToTensor(),
             transforms.Normalize(*data_stats[data_name])])
     elif data_name in ['voc']:
-      mask_path = 'data/masks.npy'
-      impath = 'data/images.npy'
-      dataset['train'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'train')
-      dataset['test'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'test')
+        
+        mask_path = '/mnt/beegfs/ksanka/semiFL/masks.npy'
+        impath = '/mnt/beegfs/ksanka/semiFL/images.npy'
+        dataset['train'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'train')
+        dataset['test'] = datasets.VOCSegmentation(images_path = impath,masks_path = mask_path,split = 'test')
         
     else:
         raise ValueError('Not valid dataset name')

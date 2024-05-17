@@ -4,9 +4,10 @@ import torchvision.transforms.v2 as transforms
 from sklearn.model_selection import train_test_split
 import numpy as np
 
-
+mask_path = '/mnt/beegfs/ksanka/semiFL/masks.npy'
+impath = '/mnt/beegfs/ksanka/semiFL/images.npy'
 class VOCSegmentation(Dataset):
-    def __init__(self, images_path = 'data/images.npy', masks_path = 'data/masks.npy',split = 'train'):
+    def __init__(self, images_path = '/mnt/beegfs/ksanka/semiFL/images.npy', masks_path = '/mnt/beegfs/ksanka/semiFL/masks.npy',split = 'train'):
         self.split = split
         self.train_indices, self.test_indices = train_test_split(range(2913), test_size=0.3, random_state=42)
 

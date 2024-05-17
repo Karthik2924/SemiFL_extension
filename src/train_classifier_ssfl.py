@@ -62,7 +62,7 @@ def runExperiment():
         #                  'test': ['Loss', 'Accuracy']})
     else:
         #metric = Metric({'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']})
-        metric = Metric({'train': ['Loss'], 'test': ['Loss']})
+        metric = Metric({'train': ['Loss','dice'], 'test': ['Loss','dice']})
     if cfg['resume_mode'] == 1:
         result = resume(cfg['model_tag'])
         last_epoch = result['epoch']
@@ -77,12 +77,12 @@ def runExperiment():
         else:
             server = make_server(model)
             client = make_client(model, data_split)
-            logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+            logger = make_logger(os.path.join('/mnt/beegfs/ksanka/semiFL/segmentation/output/', 'runs', 'train_{}'.format(cfg['model_tag'])))
     else:
         last_epoch = 1
         server = make_server(model)
         client = make_client(model, data_split)
-        logger = make_logger(os.path.join('output', 'runs', 'train_{}'.format(cfg['model_tag'])))
+        logger = make_logger(os.path.join('/mnt/beegfs/ksanka/semiFL/segmentation/output/', 'runs', 'train_{}'.format(cfg['model_tag'])))
     for epoch in range(last_epoch, cfg['global']['num_epochs'] + 1):
         train_client(batchnorm_dataset, client_dataset['train'], server, client, optimizer, metric, logger, epoch)
         if 'ft' in cfg and cfg['ft'] == 0:
@@ -101,11 +101,12 @@ def runExperiment():
                   'optimizer_state_dict': optimizer.state_dict(),
                   'scheduler_state_dict': scheduler.state_dict(),
                   'supervised_idx': supervised_idx, 'data_split': data_split, 'logger': logger}
-        save(result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+        save(result, '/mnt/beegfs/ksanka/semiFL/segmentation/output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
         if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
             metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
-            shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                        './output/model/{}_best.pt'.format(cfg['model_tag']))
+            shutil.copy('/mnt/beegfs/ksanka/semiFL/segmentation/output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+                        '/mnt/beegfs/ksanka/output/model/{}_best.pt'.format(cfg['model_tag']))
+        #print(f"EPOCH DONE**** {cfg['model_tag']}")
         logger.reset()
     return
 

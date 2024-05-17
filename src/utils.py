@@ -26,6 +26,7 @@ def makedir_exist_ok(path):
 
 
 def save(input, path, mode='torch'):
+    #print(path)
     dirname = os.path.dirname(path)
     makedir_exist_ok(dirname)
     if mode == 'torch':
@@ -161,7 +162,7 @@ def process_control():
         cfg['global'] = {}
         cfg['global']['batch_size'] = {'train': 250, 'test': 250}
         cfg['global']['shuffle'] = {'train': True, 'test': False}
-        cfg['global']['num_epochs'] = 800
+        cfg['global']['num_epochs'] = 100
         cfg['global']['optimizer_name'] = 'SGD'
         cfg['global']['lr'] = 1
         cfg['global']['momentum'] = cfg['gm']
@@ -265,15 +266,16 @@ def make_scheduler(optimizer, tag):
     return scheduler
 
 
+
 def resume(model_tag, load_tag='checkpoint', verbose=True):
-    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
-        result = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+    if os.path.exists('/mnt/beegfs/ksanka/semiFL/segmentation/output/model/{}_{}.pt'.format(model_tag, load_tag)):
+        result = load('/mnt/beegfs/ksanka/semiFL/segmentation/output/model/{}_{}.pt'.format(model_tag, load_tag))
     else:
         print('Not exists model tag: {}, start from scratch'.format(model_tag))
         from datetime import datetime
         from logger import Logger
         last_epoch = 1
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], datetime.now().strftime('%b%d_%H-%M-%S'))
+        logger_path = '/mnt/beegfs/ksanka/semiFL/segmentation/output/runs/train_{}_{}'.format(cfg['model_tag'], datetime.now().strftime('%b%d_%H-%M-%S'))
         logger = Logger(logger_path)
         result = {'epoch': last_epoch, 'logger': logger}
     if verbose:
