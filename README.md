@@ -2,10 +2,14 @@
 
 ## Steps to follow : 
 * Download .npy files to an appropriate directory
+   ```ruby
+   gdown 1vXyVtH38tXe6qgtB1F4xgOqg3PuAtU65
+   gdown 1MH7vQJJj_UxsCrpcNzZZvs-U-NaefsGQ
+    
 * Set the correct data directory and output directory in data.py and modules.py
-* 
 
-## Examples
+
+## Example for running deeplabv3 on voc, dataset
  - Train SemiFL for CIFAR10 dataset (WResNet28x2, $N_\mathcal{S}=4000$, fix ( $\tau=0.95$ ) and mix loss, $M=100$, $C=0.1$, IID, $E=5$, global mometum $0.5$, server and client sBN statistics, finetune)
     ```ruby
     python train_classifier_ssfl.py --data_name voc --model_name deeplab_mobile_nocl --control_name 500_fix@0.95-mix_100_0.1_iid_5-5_0.5_1_1
