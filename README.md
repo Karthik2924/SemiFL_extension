@@ -1,3 +1,24 @@
+# SemiFL : Semi-Supervised Federated Learning for Unlabeled Clients with Alternate Training, extension to detection with DeeplabV3
+
+## Steps to follow : 
+* Download .npy files to an appropriate directory
+* Set the correct data directory and output directory in data.py and modules.py
+* 
+
+## Examples
+ - Train SemiFL for CIFAR10 dataset (WResNet28x2, $N_\mathcal{S}=4000$, fix ( $\tau=0.95$ ) and mix loss, $M=100$, $C=0.1$, IID, $E=5$, global mometum $0.5$, server and client sBN statistics, finetune)
+    ```ruby
+    python train_classifier_ssfl.py --data_name voc --model_name deeplab_mobile_nocl --control_name 500_fix@0.95-mix_100_0.1_iid_5-5_0.5_1_1
+
+# Major Changes from the original Repository :
+* Added new modules for dataset infrastructure
+* Added new model and different variations
+* Added new evaluation metrics for segmentation
+* Corrected minor bugs in the resnet module
+
+
+
+Original Readme
 # SemiFL: Semi-Supervised Federated Learning for Unlabeled Clients with Alternate Training
 [NeurIPS 2022] This is an implementation of [SemiFL: Semi-Supervised Federated Learning for Unlabeled Clients with Alternate Training](https://arxiv.org/abs/2106.01432)
 - A resourceful server with labeled data can significantly improve its learning performance by working with distributed clients with unlabeled data without data sharing.
